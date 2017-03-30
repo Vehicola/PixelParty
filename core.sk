@@ -1,0 +1,290 @@
+options:
+	p: &6[&l!&6]&7
+	t: &7
+	h: &e
+	playerCount: 2 #amount of players required to start the game
+	pe: &cInsufficient permissions
+aliases:
+	-purple wool = 35:14, 35:9, 35:4, 35:6, 35:1, 35:11, 35:5, 35:0
+	-red wool = 35:10, 35:9, 35:4, 35:6, 35:1, 35:11, 35:5, 35:0
+	-cyan wool = 35:14, 35:10, 35:4, 35:6, 35:1, 35:11, 35:5, 35:0
+	-yellow wool = 35:14, 35:9, 35:10, 35:6, 35:1, 35:11, 35:5, 35:0
+	-pink wool = 35:14, 35:9, 35:4, 35:10, 35:1, 35:11, 35:5, 35:0
+	-orange wool = 35:14, 35:9, 35:4, 35:6, 35:10, 35:11, 35:5, 35:0
+	-blue wool = 35:14, 35:9, 35:4, 35:6, 35:1, 35:10, 35:5, 35:0
+	-green wool = 35:14, 35:9, 35:4, 35:6, 35:1, 35:11, 35:10, 35:0
+	-white wool = 35:14, 35:9, 35:4, 35:6, 35:1, 35:11, 35:5, 35:10
+	white wool = 35:0
+	lime wool = 35:5
+#=================== functions
+function sound(sound: text, pitch: integer, target: text):
+	if "%{_target}%" = "all":
+		loop all players:
+			set {_x} to loop-player's x-coordinate
+			set {_y} to loop-player's y-coordinate
+			set {_z} to loop-player's z-coordinate
+			console command "/playsound %{_sound}% %loop-player% %{_x}% %{_y}% %{_z}% 10 %{_pitch}%"
+			#broadcast "played sound &7%{_sound}%"
+	else:
+		set {_target} to {_target} parsed as player
+		set {_x} to {_target}'s x-coordinate
+		set {_y} to {_target}'s y-coordinate
+		set {_z} to {_target}'s z-coordinate
+		console command "/playsound %{_sound}% %{_target}% %{_x}% %{_y}% %{_z}% 10 %{_pitch}%"
+#
+# USAGE
+# sound("soundName", pitch, <player>)
+#
+function playerCheck(t: text):
+	set {_players} to size of all players
+	set {_specs} to size of {spec::*}
+	if {_specs} is not set:
+		set {_specs} to 0
+	set {totalPlayers} to {_players} - {_specs}
+function gameCount(t: text):
+	if {_t} = "colorMix":
+		set {_players} to size of all players
+		loop all players:
+			if loop-player's y-coordinate < 20:
+				if "%{dead::*}%" does not contain "%loop-player%":
+					add loop-player to {dead::*}
+					teleport loop-player to {gameSpec.colorMix}
+		set {_dead} to size of {dead::*}
+		if {_dead} is not set:
+			set {_dead} to 0
+		set {gameCount} to {_players} - {_dead}
+		if {gameCount} = 1:
+			loop all players:
+				if loop-player's y-coordinate is between 19 and 25:
+					set {winner} to loop-player
+	else if {_t} = "bumperBalls":
+		set {_players} to size of all players
+		loop all players:
+			if loop-player's y-coordinate < 26:
+				if "%{dead::*}%" does not contain "%loop-player%":
+					add loop-player to {dead::*}
+					teleport loop-player to {gameSpec.bumperBalls}
+		set {_dead} to size of {dead::*}
+		if {_dead} is not set:
+			set {_dead} to 0
+		set {gameCount} to {_players} - {_dead}
+		if {gameCount} = 1:
+			loop all players:
+				if loop-player's y-coordinate is between 19 and 25:
+					set {winner} to loop-player
+#======================== events
+on damage of player:
+	{playerDamage} is not true:
+		cancel event
+		{gameActive} = "Bumper Balls":
+			heal the victim
+#======================== commands
+command /game [<text>] [<text>]:
+	permission: game.admin
+	permission message: {@pe}
+	usage: /game [string] [string]
+	trigger:
+		if arg 1 is not set:
+			send "&6&lPixelParty&6 Admin Commands"
+			send " &7• {@h}/game countdown"
+			send " &7• {@h}/game start"
+		else if arg 1 is "debug":
+			set {status} to "lobby"
+			send "{@p} Game debugged"
+			set {gameCount} to 0
+			delete {dead::*}
+			delete {game.points::*}
+			delete {winner}
+		else if arg 1 is "reload" or "rl":
+			player command "/skript reload party.sk"
+			wait 1 tick
+			send "{@p} Game reloaded"
+		else if arg 1 is "gameSpawn":
+			if arg 2 is set:
+				set {_n} to arg-2 parsed as integer
+				set {gameSpawn.%{_n}%} to player's location
+				send "{@p} {@h}Game Spawn %{_n}%{@t} has been set to your location"
+		else if arg 1 is "gameSpec":
+			if arg 2 is set:
+				set {gameSpec.%arg-2%} to player's location
+				send "{@p} {@h}Game Spec %arg-2%{@t} has been set to your location"
+		else if arg 1 is "countdown":
+			{status} = "lobby"
+			playerCheck("howdy")
+			if {totalPlayers} >= {@playerCount}:
+				set {status} to "countdown"
+				set {_n} to 31
+				loop 31 times:
+					remove 1 from {_n}
+					#broadcast "%{_n}%"
+					playerCheck("!!!")
+					if {totalPlayers} >= {@playerCount}:
+						if {_n} = 30:
+							title("&eGame starting in", 0.75, 2, 0.75, "*")
+							subtitle("&c%{_n}% Seconds...", 0.75, 2, 0.75, "*")
+							broadcast "{@p} &eGame starting in &c%{_n}% seconds..."
+						else if {_n} = 10:
+							title("&eGame starting in", 0.75, 2, 0.75, "*")
+							subtitle("&c%{_n}% Seconds...", 0.75, 2, 0.75, "*")
+							broadcast "{@p} &eGame starting in &c%{_n}% seconds..."
+						else if {_n} <= 5:
+							if {_n} = 1:
+								title("&eGame starting in", 0, 1, 0.75, "*")
+								subtitle("&c%{_n}% Second...", 0, 1, 0.75, "*")
+								broadcast "{@p} &eGame starting in &c%{_n}% second..."
+							else if {_n} <= 0:
+								set {status} to "active"
+								console command "/game start"
+								stop loop
+							else:
+								title("&eGame starting in", 0, 1, 0.75, "*")
+								subtitle("&c%{_n}% Seconds...", 0, 1, 0.75, "*")
+								broadcast "{@p} &eGame starting in &c%{_n}% seconds..."
+							if {_n} = 3 or 2 or 1:
+								sound("random.click", 2, "all")
+					else:
+						broadcast "&cNot enough players to start"
+						set {status} to "lobby"
+						stop loop
+					wait 1 second
+			else:
+				broadcast "&cNot enough players to start"
+		else if arg 1 is "start":
+			{status} = "active":
+				# colorMixUp Game
+				set {gameCycle} to 1
+				set {gameActive} to "Color Mix-Up"
+				loop all players:
+					teleport loop-player to {gameSpawn.%{gameCycle}%}
+					set loop-player's gamemode to adventure
+				wait 2 seconds
+				title("&2Game &2%{gameCycle}%", 1, 2, 1, "*")
+				subtitle("&a%{gameActive}%", 1, 2, 1, "*")
+				broadcast "&a&l&m-------------------------"
+				broadcast ""
+				broadcast " &2&l%{gameActive}%"
+				broadcast " &8Description"
+				broadcast "  &7Match the selected color up with"
+				broadcast "  &7the corresponding color on the"
+				broadcast "  &7floor."
+				broadcast ""
+				broadcast "&a&l&m-------------------------"
+				broadcast "{@p} &eGame starting in &c5 seconds..."
+				wait 5 seconds
+				broadcast "{@p} &eGame started!"
+				set {game.colorMix.multiplier} to 5
+				set {game.colorMix.round} to 1
+				gameCount("colorMix")
+				wait 0.5 seconds
+				while {gameCount} >= 2:
+					gameCount("colorMix")
+					set {game.colorMix.color} to a random element out of "white wool", "purple wool", "red wool", "cyan wool", "yellow wool", "orange wool", "pink wool", "blue wool" and "green wool"
+					set {_world} to world("minigamemaps")
+					set {_session} to new editsession in {_world} with max limit of -1
+					set {_padCorner1} to location(-4, 19, 3, {_world})
+					set {_padCorner2} to location(4, 19, -5, {_world})
+					set {_selCorner1} to location(11, 28, -12, {_world})
+					set {_selCorner2} to location(-11, 22, 10, {_world})
+					if {game.colorMix.color} = "white wool":
+						replace black wool from {_selCorner1} to {_selCorner2} with white wool using {_session}
+					else if {game.colorMix.color} = "purple wool":
+						replace black wool from {_selCorner1} to {_selCorner2} with purple wool using {_session}
+					else if {game.colorMix.color} = "red wool":
+						replace black wool from {_selCorner1} to {_selCorner2} with red wool using {_session}
+					else if {game.colorMix.color} = "cyan wool":
+						replace black wool from {_selCorner1} to {_selCorner2} with cyan wool using {_session}
+					else if {game.colorMix.color} = "yellow wool":
+						replace black wool from {_selCorner1} to {_selCorner2} with yellow wool using {_session}
+					else if {game.colorMix.color} = "orange wool":
+						replace black wool from {_selCorner1} to {_selCorner2} with orange wool using {_session}
+					else if {game.colorMix.color} = "pink wool":
+						replace black wool from {_selCorner1} to {_selCorner2} with pink wool using {_session}
+					else if {game.colorMix.color} = "blue wool":
+						replace black wool from {_selCorner1} to {_selCorner2} with blue wool using {_session}
+					else if {game.colorMix.color} = "green wool":
+						replace black wool from {_selCorner1} to {_selCorner2} with lime wool using {_session}
+					broadcast "{@p} &eNew color selected! Platforms drop in &c%{game.colorMix.multiplier}% seconds..."
+					set {_timer} to {game.colorMix.multiplier}
+					loop {game.colorMix.multiplier} times:
+						loop all players:
+							set loop-player's level to {_timer}
+						wait 0.5 seconds
+						remove 0.5 from {_timer}
+						loop all players:
+							set loop-player's level to {_timer}
+						wait 0.5 seconds
+						remove 0.5 from {_timer}
+					loop all players:
+						set loop-player's level to 0
+					if {game.colorMix.color} = "white wool":
+						replace purple wool, red wool, cyan wool, yellow wool, orange wool, pink wool, blue wool and lime wool between {_padCorner1} and {_padCorner2} with air using editsession {_session}
+						broadcast "{@p} &ePlatforms dropped! The color was &f&l%{game.colorMix.color}%&r&e!"
+					else if {game.colorMix.color} = "purple wool":
+						replace white wool, red wool, cyan wool, yellow wool, orange wool, pink wool, blue wool and lime wool between {_padCorner1} and {_padCorner2} with air using editsession {_session}
+						broadcast "{@p} &ePlatforms dropped! The color was &5&l%{game.colorMix.color}%&r&e!"
+					else if {game.colorMix.color} = "red wool":
+						replace purple wool, white wool, cyan wool, yellow wool, orange wool, pink wool, blue wool and lime wool between {_padCorner1} and {_padCorner2} with air using editsession {_session}
+						broadcast "{@p} &ePlatforms dropped! The color was &c&l%{game.colorMix.color}%&r&e!"
+					else if {game.colorMix.color} = "cyan wool":
+						replace purple wool, red wool, white wool, yellow wool, orange wool, pink wool, blue wool and lime wool between {_padCorner1} and {_padCorner2} with air using editsession {_session}
+						broadcast "{@p} &ePlatforms dropped! The color was &3&l%{game.colorMix.color}%&r&e!"
+					else if {game.colorMix.color} = "yellow wool":
+						replace purple wool, red wool, cyan wool, white wool, orange wool, pink wool, blue wool and lime wool between {_padCorner1} and {_padCorner2} with air using editsession {_session}
+						broadcast "{@p} &ePlatforms dropped! The color was &e&l%{game.colorMix.color}%&r&e!"
+					else if {game.colorMix.color} = "orange wool":
+						replace purple wool, red wool, cyan wool, yellow wool, white wool, pink wool, blue wool and lime wool between {_padCorner1} and {_padCorner2} with air using editsession {_session}
+						broadcast "{@p} &ePlatforms dropped! The color was &6&l%{game.colorMix.color}%&r&e!"
+					else if {game.colorMix.color} = "pink wool":
+						replace purple wool, red wool, cyan wool, yellow wool, orange wool, white wool, blue wool and lime wool between {_padCorner1} and {_padCorner2} with air using editsession {_session}
+						broadcast "{@p} &ePlatforms dropped! The color was &d&l%{game.colorMix.color}%&r&e!"
+					else if {game.colorMix.color} = "blue wool":
+						replace purple wool, red wool, cyan wool, yellow wool, orange wool, pink wool, white wool and lime wool between {_padCorner1} and {_padCorner2} with air using editsession {_session}
+						broadcast "{@p} &ePlatforms dropped! The color was &9&l%{game.colorMix.color}%&r&e!"
+					else if {game.colorMix.color} = "green wool":
+						replace purple wool, red wool, cyan wool, yellow wool, orange wool, pink wool, blue wool and white wool between {_padCorner1} and {_padCorner2} with air using editsession {_session}
+						broadcast "{@p} &ePlatforms dropped! The color was &a&l%{game.colorMix.color}%&r&e!"
+					sound("random.orb", 2, "all")
+					add 1 to {game.colorMix.round}
+					if {game.colorMix.round} = 3 or 5 or 7 or 9 or 11 or 13 or 15:
+						remove 0.5 from {game.colorMix.multiplier}
+					wait 1 second
+					undo changes from editsession {_session}
+					replace wool from {game.colorMix.selCorner1} to {game.colorMix.selCorner2} with black wool using {_session}
+					gameCount("colorMix")
+					wait 0.5 seconds
+				{gameCount} = 1
+				delete {dead::*}
+				add 1 to {game.points::%{winner}%}
+				broadcast ""
+				broadcast "{@p} &c&lGame Finished!"
+				broadcast "{@p} &eWinner &7%{winner}% &8- &6%{game.points::%{winner}%}% Points"
+				broadcast ""
+				{status} = "active":
+					# Bumper Balls Game
+					set {gameCycle} to 2
+					set {gameActive} to "Bumper Balls"
+					loop all players:
+						teleport loop-player to {gameSpawn.%{gameCycle}%}
+						set loop-player's gamemode to adventure
+					wait 2 seconds
+					title("&2Game &2%{gameCycle}%", 1, 2, 1, "*")
+					subtitle("&a%{gameActive}%", 1, 2, 1, "*")
+					broadcast "&a&l&m-------------------------"
+					broadcast ""
+					broadcast " &2&l%{gameActive}%"
+					broadcast " &8Description"
+					broadcast "  &7Knock other players off the arena"
+					broadcast "  &7Last player remaining wins!"
+					broadcast ""
+					broadcast "&a&l&m-------------------------"
+					broadcast "{@p} &eGame starting in &c5 seconds..."
+					wait 5 seconds
+					broadcast "{@p} &eGame started!"
+					set {playerDamage} to true
+					loop all players:
+						give loop-player 1 slimeball of knockback 3 named "&a&lBumper" with lore "&7Your trusty bumper"
+					gameCount("bumperBalls")
+					while {gameCount} >= 2:
+						wait 1 seconds
+						gameCount("bumperBalls")
+					broadcast "done! whoa!"
