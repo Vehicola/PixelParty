@@ -16,6 +16,7 @@ aliases:
 	-white wool = 35:14, 35:9, 35:4, 35:6, 35:1, 35:11, 35:5, 35:10
 	white wool = 35:0
 	lime wool = 35:5
+	destructionDuetBlocks = 1:0, 5:1, 5:0, 12:0, 4:0, 13:0
 #=================== functions
 function sound(sound: text, pitch: integer, target: text):
 	if "%{_target}%" = "all":
@@ -72,12 +73,43 @@ function gameCount(t: text):
 			loop all players:
 				if loop-player's y-coordinate is between 19 and 25:
 					set {winner} to loop-player
+	else if {_t} = "destructionDuet":
+		if {team1.count} = 343:
+			set {DD.running} to false
+			set {winner::*} to {team1::*}
+			set {teamWinner} to "Team 1"
+			stop
+		else if {team2.count} = 343:
+			set {DD.running} to false
+			set {winner::*} to {team2::*}
+			set {teamWinner} to "Team 2"
+			stop
 #======================== events
 on damage of player:
-	{playerDamage} is not true:
+	if {playerDamage} is false:
 		cancel event
-		{gameActive} = "Bumper Balls":
-			heal the victim
+	if {playerDamage} is not set:
+		cancel event
+	{gameActive} = "Bumper Balls":
+		wait 1 second
+		heal the victim
+on break:
+	if {gameActive} = "Destruction Duet":
+		if event-block is not destructionDuetBlocks:
+			cancel event
+		else:
+			if "%{team1::*}%" contains "%event-player%":
+				add 1 to {team1.count}
+			else if "%{team2::*}%" contains "%event-player%":
+				add 1 to {team2.count}
+	else if {gameActive} is set:
+		cancel event
+on item spawn of destructionDuetBlocks:
+	{gameActive} = "Destruction Duet":
+		cancel event
+on item spawn of flint:
+	{gameActive} = "Destruction Duet":
+		cancel event
 #======================== commands
 command /game [<text>] [<text>]:
 	permission: game.admin
@@ -95,6 +127,8 @@ command /game [<text>] [<text>]:
 			delete {dead::*}
 			delete {game.points::*}
 			delete {winner}
+			delete {playerDamage}
+			delete {gameActive}
 		else if arg 1 is "reload" or "rl":
 			player command "/skript reload party.sk"
 			wait 1 tick
@@ -157,6 +191,7 @@ command /game [<text>] [<text>]:
 				loop all players:
 					teleport loop-player to {gameSpawn.%{gameCycle}%}
 					set loop-player's gamemode to adventure
+					clear loop-player's inventory
 				wait 2 seconds
 				title("&2Game &2%{gameCycle}%", 1, 2, 1, "*")
 				subtitle("&a%{gameActive}%", 1, 2, 1, "*")
@@ -259,6 +294,7 @@ command /game [<text>] [<text>]:
 				broadcast "{@p} &c&lGame Finished!"
 				broadcast "{@p} &eWinner &7%{winner}% &8- &6%{game.points::%{winner}%}% Points"
 				broadcast ""
+				wait 5 seconds
 				{status} = "active":
 					# Bumper Balls Game
 					set {gameCycle} to 2
@@ -282,9 +318,89 @@ command /game [<text>] [<text>]:
 					broadcast "{@p} &eGame started!"
 					set {playerDamage} to true
 					loop all players:
-						give loop-player 1 slimeball of knockback 3 named "&a&lBumper" with lore "&7Your trusty bumper"
+						give loop-player 1 slimeball of knockback 2 named "&aBumper" with lore "||&7&oYour trusty bumper"
 					gameCount("bumperBalls")
 					while {gameCount} >= 2:
 						wait 1 seconds
 						gameCount("bumperBalls")
-					broadcast "done! whoa!"
+					{gameCount} = 1
+					loop all players:
+						clear loop-player's inventory
+					set {playerDamage} to false
+					delete {dead::*}
+					add 1 to {game.points::%{winner}%}
+					broadcast ""
+					broadcast "{@p} &c&lGame Finished!"
+					broadcast "{@p} &eWinner &7%{winner}% &8- &6%{game.points::%{winner}%}% Points"
+					broadcast ""
+					wait 5 seconds
+					{status} = "active":
+						# Destruction Duet Game
+						set {gameCycle} to 3
+						set {gameActive} to "Destruction Duet"
+						set {_total} to size of all players
+						set {_teamSize} to {_total} / 2
+						delete {team1::*}
+						delete {team2::*}
+						set {_team} to 0
+						delete {teamWinner}
+						delete {team1.count}
+						delete {team2.count}
+						delete {winner::*}
+						loop all players:
+							set loop-player's gamemode to survival
+							add loop-player to {players::*}
+						loop 2 times:
+							add 1 to {_team}
+							loop {_teamSize} times:
+								set {_newPlayer} to a random element out of {players::*}
+								remove {_newPlayer} from {players::*}
+								if {_team} = 1:
+									add {_newPlayer} to {team1::*}
+								else if {_team} = 2:
+									add {_newPlayer} to {team2::*}
+						teleport {team1::*} to {gameSpawn.31}
+						teleport {team2::*} to {gameSpawn.32}
+						wait 2 seconds
+						title("&2Game &2%{gameCycle}%", 1, 2, 1, "*")
+						subtitle("&a%{gameActive}%", 1, 2, 1, "*")
+						broadcast "&a&l&m-------------------------"
+						broadcast ""
+						broadcast " &2&l%{gameActive}%"
+						broadcast " &8Description"
+						broadcast "  &7Destroy your cube before the"
+						broadcast "  &7opposing team!"
+						broadcast ""
+						broadcast "&a&l&m-------------------------"
+						broadcast "{@p} &eGame starting in &c5 seconds..."
+						wait 5 seconds
+						broadcast "{@p} &eGame started!"
+						loop all players:
+							give loop-player 1 diamond axe of unbreaking 10 and efficiency 3 named "&aAxe" with lore "||&7&oBreaks wooden blocks"
+							give loop-player 1 diamond pickaxe of unbreaking 10 and efficiency 3 named "&aPickaxe" with lore "||&7&oBreaks stone/cobble blocks"
+							give loop-player 1 diamond shovel of unbreaking 10 and efficiency 3 named "&aSpade" with lore "||&7&oBreaks gravel/sand blocks"
+						set {DD.running} to true
+						while {DD.running} is true:
+							wait 1 second
+							gameCount("destructionDuet")
+						{gameCount} = 1
+						loop all players:
+							clear loop-player's inventory
+						delete {dead::*}
+						delete {team1::*}
+						delete {team2::*}
+						loop {winner::*}:
+							add 1 to {game.points::%loop-value%}
+						delete {winner::*}
+						broadcast ""
+						broadcast "{@p} &c&lGame Finished!"
+						if {teamWinner} = "Team 1":
+							broadcast "{@p} &eWinner &4&lTeam 1"
+						else if {teamWinner} = "Team 2":
+							broadcast "{@p} &eWinner &9&lTeam 2"
+						delete {teamWinner}
+						delete {team1.count}
+						delete {team2.count}
+						broadcast ""
+						wait 5 seconds
+						broadcast "dun!"
